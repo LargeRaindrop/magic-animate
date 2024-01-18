@@ -8,7 +8,14 @@
 # disclosure or distribution of this material and related documentation
 # without an express license agreement from ByteDance or
 # its affiliates is strictly prohibited.
-import argparse
+
+# TODO use imgae CLIP embedding or not
+CLIP_FLAG = False
+# CLIP_FLAG = True
+if CLIP_FLAG:
+    from transformers import CLIPVisionModelWithProjection
+    from magicanimate.pipelines.pipeline_animation import AnimationPipeline_CLIP
+
 import argparse
 import datetime
 import inspect
@@ -28,8 +35,8 @@ from transformers import CLIPTextModel, CLIPTokenizer
 from magicanimate.models.unet_controlnet import UNet3DConditionModel
 
 # TODO replace DensePose to OpenPose
-# from magicanimate.models.controlnet import ControlNetModel
-from diffusers import ControlNetModel
+from magicanimate.models.controlnet import ControlNetModel
+# from diffusers import ControlNetModel
 
 from magicanimate.models.appearance_encoder import AppearanceEncoderModel
 from magicanimate.models.mutual_self_attention import ReferenceAttentionControl
@@ -82,12 +89,16 @@ class MagicAnimate():
         else:
             vae = AutoencoderKL.from_pretrained(config.pretrained_model_path, subfolder="vae")
 
+        if CLIP_FLAG:
+            image_enc = CLIPVisionModelWithProjection.from_pretrained(
+                config.image_encoder_path).to(dtype=torch.float32, device="cuda")
+            
         ### Load controlnet
         # TODO replace DensePose to OpenPose
-        # controlnet = ControlNetModel.from_pretrained(config.pretrained_controlnet_path)
-        controlnet = ControlNetModel.from_pretrained("/data/aigc/aigc2/guyu/magic-animate/pretrained_models/openpose",
-                                                     local_files_only=True,
-                                                     )
+        controlnet = ControlNetModel.from_pretrained(config.pretrained_controlnet_path)
+        # controlnet = ControlNetModel.from_pretrained("/data/aigc/aigc2/guyu/magic-animate/pretrained_models/openpose",
+        #                                              local_files_only=True,
+        #                                              )
 
         vae.to(torch.float16)
         unet.to(torch.float16)
@@ -104,6 +115,14 @@ class MagicAnimate():
             scheduler=DDIMScheduler(**OmegaConf.to_container(inference_config.noise_scheduler_kwargs)),
             # NOTE: UniPCMultistepScheduler
         ).to("cuda")
+
+        if CLIP_FLAG:
+            self.pipeline = AnimationPipeline_CLIP(
+                vae=vae, text_encoder=text_encoder, tokenizer=tokenizer, unet=unet, controlnet=controlnet,
+                scheduler=DDIMScheduler(**OmegaConf.to_container(inference_config.noise_scheduler_kwargs)),
+                # NOTE: UniPCMultistepScheduler
+                image_encoder=image_enc,
+            ).to("cuda")
 
         # 1. unet ckpt
         # 1.1 motion module

@@ -3,12 +3,14 @@ pretrained_vae_path: "pretrained_models/sd-vae-ft-mse"
 pretrained_controlnet_path: "pretrained_models/MagicAnimate/densepose_controlnet"
 pretrained_appearance_encoder_path: "pretrained_models/MagicAnimate/appearance_encoder"
 pretrained_unet_path: ""
+image_encoder_path: "./pretrained_models/image_encoder"
 
 motion_module: "pretrained_models/MagicAnimate/temporal_attention/temporal_attention.ckpt"
 
 savename: null
 
 fusion_blocks: "midup"
+# fusion_blocks: "full"
 
 seed:           [1]
 steps:          25
